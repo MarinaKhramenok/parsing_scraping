@@ -5,39 +5,39 @@
 
 
 # useful for handling different item types with a single interface
-import pathlib
+from urllib.parse import urlparse
 
 from itemadapter import ItemAdapter
+import os
 import scrapy
 from scrapy.pipelines.images import ImagesPipeline
 from pymongo import MongoClient
 
 
-
-class LmPipeline:
+class InstagramPipeline:
     def __init__(self):
         client = MongoClient('localhost', 27017)
-        self.mongo_base = client.lm
+        self.mongo_base = client.instagram09
 
     def process_item(self, item, spider):
-        item['item_info'] = dict(zip(item['item_term'], item['item_details']))
         collection = self.mongo_base[spider.name]
         collection.insert_one(item)
         print()
         return item
 
 
-
-
-class LmPhotosPipeline(ImagesPipeline):
+class InstagramImagesPipeline(ImagesPipeline):
     def get_media_requests(self, item, info):
         if item['photos']:
-            for img in item['photos']:
-                try:
-                    yield scrapy.Request(img)
-                except Exception as e:
-                    print(e)
+            try:
+                yield scrapy.Request(item['photos'], meta=item)
+            except Exception as e:
+                print(e)
+
+    def file_path(self, request, response=None, info=None, *, item):
+        return f'images/{item["name"]}' + os.path.basename(urlparse(request.url).path)
 
     def item_completed(self, results, item, info):
-        item['photos'] = [item[1] for item in results if item[0]]
+        if results:
+            item['photos'] = [itm[1] for itm in results if itm[0]]
         return item
